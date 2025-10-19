@@ -30,3 +30,6 @@ model Post {
   updatedAt DateTime @updatedAt
 }
 
+
+
+

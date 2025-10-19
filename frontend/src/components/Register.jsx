@@ -54,7 +54,7 @@ function Register() {
     setMessage("");
 
     try {
-      const response = await fetch("http://localhost:3001/users", {
+      const response = await fetch("http://localhost:5000/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -122,14 +122,12 @@ function Register() {
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <Typography
-              variant='body1'
-              textAlign='center'
-              color="textPrimary"
-            
-
-              > 
+                variant="body1"
+                textAlign="center"
+                color="textPrimary"
+              >
                 First Name
-                </Typography>
+              </Typography>
               <TextField
                 fullWidth
                 label=" Enter your first name"
@@ -141,15 +139,13 @@ function Register() {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-            <Typography
-              variant='body1'
-              textAlign='center'
-              color="textPrimary"
-            
-
-              > 
+              <Typography
+                variant="body1"
+                textAlign="center"
+                color="textPrimary"
+              >
                 Last Name
-                </Typography>
+              </Typography>
               <TextField
                 fullWidth
                 label="Last Name"
@@ -203,8 +199,7 @@ function Register() {
             variant="contained"
             sx={{
               mt: 3,
-              background:
-                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               fontWeight: 600,
               py: 1.4,
               borderRadius: 2,
@@ -217,7 +212,11 @@ function Register() {
             }}
             disabled={isLoading}
           >
-            {isLoading ? <CircularProgress size={24} color="inherit" /> : "Create Account"}
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Create Account"
+            )}
           </Button>
 
           {message && (
@@ -230,12 +229,7 @@ function Register() {
           )}
         </Box>
 
-        <Box
-          mt={3}
-          pt={2}
-          borderTop="1px solid #e1e5e9"
-          textAlign="center"
-        >
+        <Box mt={3} pt={2} borderTop="1px solid #e1e5e9" textAlign="center">
           <Typography variant="body2" color="text.secondary">
             Already have an account?{" "}
             <Typography
