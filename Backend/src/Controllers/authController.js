@@ -31,10 +31,12 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(400).json({ error: "User not found. Please register first." });
+      return res
+        .status(400)
+        .json({ error: "User not found. Please register first." });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -42,11 +44,15 @@ exports.login = async (req, res) => {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    // const token = jwt.sign(
+    //   { userId: user.id, email: user.email },
+    //   process.env.JWT_SECRET,
+    //   { expiresIn: "1h" }
+    // );
+
+    const { generateToken } = require("../Utils/jwt");
+
+    const token = generateToken({ userId: user.id, email: user.email });
 
     res.json({
       message: "Login successful",

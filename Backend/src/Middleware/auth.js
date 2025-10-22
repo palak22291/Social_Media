@@ -20,7 +20,13 @@ module.exports = function (req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { verifyToken } = require("../Utils/jwt");
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return res.status(401).json({ error: "Token is invalid or expired" });
+    }
     req.user = decoded;
     // "This request now belongs to this user."
     next();
