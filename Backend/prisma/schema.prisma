@@ -16,6 +16,9 @@ model User {
   email     String   @unique
   password  String
   posts     Post[]
+  comments  Comment[]
+
+  likes Like[]
  
 }
 
@@ -24,10 +27,37 @@ model Post {
   title     String
   content   String
   imageUrl  String?
+  published Boolean @default(false)
+  category String 
   authorId  Int
   author    User     @relation(fields: [authorId], references: [id])
+   comments  Comment[]
+
+  likes Like[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model comment {
+
+   id        Int      @id @default(autoincrement())
+  content   String
+  authorId  Int
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+  createdAt DateTime @default(now())
+
+}
+
+model like{
+   id       Int  @id @default(autoincrement())
+  userId   Int
+  postId   Int
+  user     User @relation(fields: [userId], references: [id])
+  post     Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
 }
 
 
