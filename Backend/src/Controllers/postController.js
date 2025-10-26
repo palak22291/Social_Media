@@ -56,6 +56,19 @@ exports.getAllPosts = async (req, res) => {
       ],
     };
 
+    let orderByObj;
+    if (sortBy==="mostLiked"){
+      orderByObj = { likes: { _count: order } };
+
+    }
+    else if(sortBy==="mostCommented") {
+      orderByObj = { comments: { _count: order } };
+
+    }
+    else{
+      orderByObj = { [sortBy]: order };
+    }
+
     // now we will fecth posts with pagination and search and sorting 
     const posts = await prisma.post.findMany({
       where: filterConditions,
@@ -74,7 +87,7 @@ exports.getAllPosts = async (req, res) => {
         }
 
       },
-      orderBy: {[sortBy]: order },
+      orderBy: orderByObj,
       // dynamic sorting using req.params
       skip,
       take: limit,
