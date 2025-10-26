@@ -10,17 +10,30 @@ generator client {
 
 model User {
   id        Int      @id @default(autoincrement())
-  firstName      String
-  lastName      String
-
+  firstName String
+  lastName  String
   email     String   @unique
   password  String
   posts     Post[]
   comments  Comment[]
+  likes     Like[]
 
-  likes Like[]
- 
+  // Self-relation for followers/following
+  followers Follower[] @relation("Followers")
+  following Follower[] @relation("Following")
 }
+
+model Follower {
+  id          Int  @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+
+  follower   User @relation("Following", fields: [followerId], references: [id])
+  following  User @relation("Followers", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
 
 model Post {
   id        Int      @id @default(autoincrement())

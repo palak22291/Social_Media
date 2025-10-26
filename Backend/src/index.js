@@ -8,6 +8,9 @@ const authRoutes = require("./Routes/authRoutes");
 const postRoutes= require("./Routes/postRoutes")
 const likeRoutes = require("./Routes/likeRoutes")
 const commentRoutes = require("./Routes/commentRoutes")
+const userRoutes = require("./Routes/userRoutes");
+
+
 
 const app = express();
 app.use(cors());
@@ -21,6 +24,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts",postRoutes)
 app.use("/api/likes", likeRoutes)
 app.use("/api/comments",commentRoutes)
+app.use("/api/users", userRoutes);
+
 
 app.get("/", (req, res) => res.send("API is running 🚀"));
 
