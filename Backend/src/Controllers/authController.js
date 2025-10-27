@@ -4,7 +4,9 @@ const { prisma } = require("../../prisma/client.js");
 
 exports.register = async (req, res) => {
   try {
+
     const { firstName, lastName, email, password } = req.body;
+    console.log("📥 Register request body:", req.body); // Log the input
 
     if (!firstName || !email || !password) {
       return res.status(400).json({ error: "All fields are required" });
