@@ -38,7 +38,7 @@ exports.googleAuth = async (req, res) => {
           email,
           password: "",
           // profilePic: picture || "",
-          authProvider: "google",
+          // authProvider: "google",
         },
       });
     } else {
