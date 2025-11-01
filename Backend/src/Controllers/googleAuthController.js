@@ -37,7 +37,7 @@ exports.googleAuth = async (req, res) => {
           lastName: name?.split(" ")[1] || "",
           email,
           password: "",
-          profilePic: picture || "",
+          // profilePic: picture || "",
           authProvider: "google",
         },
       });

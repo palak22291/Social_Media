@@ -103,35 +103,38 @@
 //   };
 
 //   const handleGoogleSuccess = async (credentialResponse) => {
-//     try {
-//       const decoded = jwtDecode(credentialResponse.credential);
-//       console.log("Google user:", decoded);
-
-//       const payload = {
-//         firstName: decoded.given_name,
-//         lastName: decoded.family_name,
-//         email: decoded.email,
-//         googleId: decoded.sub,
+//         console.log("🔹 Google credential response:", credentialResponse);
+//         try {
+//           const token = credentialResponse?.credential;
+//           if (!token) throw new Error("No credential token received from Google");
+      
+//           const decoded = jwtDecode(token);
+//           console.log("🧠 Decoded Google user:", decoded);
+      
+//           const res = await axiosInstance.post("/auth/google", { token });
+//           console.log("✅ Server response from /auth/google:", res.data);
+      
+//           setSeverity("success");
+//           setServerMessage("Google sign-in successful!");
+//         } catch (err) {
+//           console.error("❌ Google login error:", err?.response || err);
+//           setSeverity("error");
+//           setServerMessage(
+//             err?.response?.data?.error ||
+//               err?.response?.data?.message ||
+//               "Google sign-in failed. Try again."
+//           );
+//         }
 //       };
-
-//       const res = await axiosInstance.post("/auth/google", payload);
-//       console.log("Server response:", res.data);
-
-//       setSeverity("success");
-//       setServerMessage("Google sign-in successful!");
-//     } catch (err) {
-//       console.error("Google login error:", err);
-//       setSeverity("error");
-//       setServerMessage("Google sign-in failed. Try again.");
-//     }
-//   };
-
-//   const handleGoogleError = () => {
-//     setSeverity("error");
-//     setServerMessage("Google sign-in was cancelled or failed.");
-//   };
+    
+//       // ✅ ADD THIS BELOW
+//       const handleGoogleError = () => {
+//         console.warn("⚠️ Google sign-in was cancelled or failed.");
+//         setSeverity("error");
+//         setServerMessage("Google sign-in was cancelled or failed.");
+//       };
   
-// // 
+  
 
 
 //   return (
@@ -308,7 +311,7 @@
 
 import React, { useEffect, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
-import jwtDecode from "jwt-decode"; // ✅ correct import
+import {jwtDecode} from "jwt-decode"; // ✅ correct import
 
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -333,6 +336,8 @@ import RHFPasswordField from "../hook-form/RHFPasswordField";
 import RHFTextField from "../hook-form/RHFTextField";
 
 console.log("🌍 Frontend loaded at:", window.location.origin);
+
+
 console.log("🔑 Google Client ID:", process.env.REACT_APP_GOOGLE_CLIENT_ID);
 
 export default function Register() {
@@ -349,6 +354,7 @@ export default function Register() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
 
+  
   useEffect(() => {
     const interval = setInterval(() => {
       setFadeIn(false);
@@ -357,8 +363,9 @@ export default function Register() {
         setFadeIn(true);
       }, 300);
     }, 3000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [subtitleTexts.length]);
 
   const methods = useForm({
     resolver: zodResolver(registerSchema),
@@ -407,24 +414,19 @@ export default function Register() {
     }
   };
 
-  // ✅ GOOGLE LOGIN HANDLER
+
   const handleGoogleSuccess = async (credentialResponse) => {
+    console.log("🔹 Google credential response:", credentialResponse);
     try {
-      console.log("🔐 Google credentialResponse:", credentialResponse);
       const token = credentialResponse?.credential;
-
-      if (!token) {
-        throw new Error("No credential token received from Google");
-      }
-
+      if (!token) throw new Error("No credential token received from Google");
+  
       const decoded = jwtDecode(token);
       console.log("🧠 Decoded Google user:", decoded);
-
-      // Send token to backend for verification
+  
       const res = await axiosInstance.post("/auth/google", { token });
-
       console.log("✅ Server response from /auth/google:", res.data);
-
+  
       setSeverity("success");
       setServerMessage("Google sign-in successful!");
     } catch (err) {
@@ -438,11 +440,13 @@ export default function Register() {
     }
   };
 
+ 
   const handleGoogleError = () => {
     console.warn("⚠️ Google sign-in was cancelled or failed.");
     setSeverity("error");
     setServerMessage("Google sign-in was cancelled or failed.");
   };
+
 
   return (
     <Box
@@ -517,6 +521,11 @@ export default function Register() {
                 <Button
                   type="submit"
                   variant="contained"
+                
+                    sx={{
+                      textTransform: "none", // 👈 disables automatic uppercase
+                    }}
+                
                   disabled={isSubmitting}
                   startIcon={
                     isSubmitting ? (
