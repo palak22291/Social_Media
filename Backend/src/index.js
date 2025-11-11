@@ -22,7 +22,7 @@ app.use(
   );
   
 app.use(express.json());
-
+// made changes in cors 
 
 // API routes
 app.use("/api/auth", authRoutes);

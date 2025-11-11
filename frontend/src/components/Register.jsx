@@ -112,7 +112,7 @@ export default function Register() {
 
       setSeverity("success");
       setServerMessage("Google sign-in successful!");
-      // 🔹 Optional: Redirect to dashboard or login after Google sign-in
+    
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
       console.error("❌ Google login error:", err?.response || err);
