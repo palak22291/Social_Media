@@ -15,7 +15,12 @@ const userRoutes = require("./Routes/userRoutes");
 const app = express();
 app.use(
     cors({
-      origin: "https://connectify-palaks-projects-63c6e26a.vercel.app",
+      origin: [
+        "https://connectify-palaks-projects-63c6e26a.vercel.app",
+        "https://social-media-ebon-one.vercel.app",
+        "http://localhost:3000",
+
+      ],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     })
