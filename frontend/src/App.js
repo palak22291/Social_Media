@@ -1,4 +1,4 @@
-import Feed from "./pages/feed";
+import Feed from "./pages/Feed";
 import Register from "./components/Register";
 import Login from "./components/Login";
 import React from "react";
