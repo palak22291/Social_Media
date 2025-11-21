@@ -31,7 +31,7 @@ import RHFPasswordField from "../hook-form/RHFPasswordField";
 import RHFTextField from "../hook-form/RHFTextField";
 
 export default function Register() {
-  const navigate = useNavigate(); // 🔹 Added navigate hook
+  const navigate = useNavigate(); 
   const [serverMessage, setServerMessage] = useState(null);
   const [severity, setSeverity] = useState("info");
 
@@ -102,29 +102,52 @@ export default function Register() {
     }
   };
 
+  // const handleGoogleSuccess = async (credentialResponse) => {
+  //   try {
+  //     const token = credentialResponse?.credential;
+  //     if (!token) throw new Error("No credential token received from Google");
+
+  //     // const decoded = jwtDecode(token);
+  //     // const res = await axiosInstance.post("/auth/google", { token });
+
+  //     setSeverity("success");
+  //     setServerMessage("Google sign-in successful!");
+    
+  //     setTimeout(() => navigate("/login"), 1500);
+  //   } catch (err) {
+  //     console.error("❌ Google login error:", err?.response || err);
+  //     setSeverity("error");
+  //     setServerMessage(
+  //       err?.response?.data?.error ||
+  //         err?.response?.data?.message ||
+  //         "Google sign-in failed. Try again."
+  //     );
+  //   }
+  // };
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       const token = credentialResponse?.credential;
-      if (!token) throw new Error("No credential token received from Google");
-
-      // const decoded = jwtDecode(token);
-      // const res = await axiosInstance.post("/auth/google", { token });
-
+      if (!token) throw new Error("No credential token received");
+  
+      const res = await axiosInstance.post("/google", { token });
+  
+      localStorage.setItem("authToken", res.data.token);
+  
       setSeverity("success");
       setServerMessage("Google sign-in successful!");
-    
-      setTimeout(() => navigate("/login"), 1500);
+  
+      setTimeout(() => navigate("/"), 1500);
     } catch (err) {
       console.error("❌ Google login error:", err?.response || err);
       setSeverity("error");
       setServerMessage(
         err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          "Google sign-in failed. Try again."
+        "Google sign-in failed."
       );
     }
   };
-
+  
+  
   const handleGoogleError = () => {
     setSeverity("error");
     setServerMessage("Google sign-in was cancelled or failed.");
