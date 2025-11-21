@@ -1,4 +1,5 @@
 import Feed from "./pages/Feed";
+import CreatePost from "./pages/CreatePost";
 
 import Register from "./components/Register";
 import Login from "./components/Login";
@@ -12,6 +13,9 @@ function App() {
     <Route path="/register" element={<Register />} />
     <Route path="/login" element={<Login />} />
     <Route path="/" element={<Feed/>}/>
+    <Route path="/create" element={<CreatePost />} />
+
+    
   </Routes>
   );
 }

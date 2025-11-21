@@ -44,6 +44,16 @@ export default function Feed() {
       >
         Connectify Feed
       </Typography>
+      {/* button */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 4 }}>
+        <Button
+          variant="contained"
+          onClick={() => (window.location.href = "/create")}
+          sx={{ textTransform: "none" }}
+        >
+          + Create Post
+        </Button>
+      </Box>
 
       {/* LOADER */}
       {loading ? (
