@@ -13,7 +13,7 @@ export default function MainLayout({ children }) {
       {/* Top Navigation */}
       <Navbar />
 
-      {/* Content Container - keeps Feed centered & max width */}
+     
       <Box
         sx={{
           maxWidth: 750,
