@@ -60,7 +60,7 @@ const darkTheme = createTheme({
   },
 
   shape: {
-    borderRadius: 14, // smoother UI globally
+    borderRadius: 8
   },
 });
 
