@@ -6,8 +6,8 @@ exports.createPost = async (req, res) => {
   try {
     const { title, imageUrl, content } = req.body;
 
-    if (!title || !content) {
-      return res.status(400).json({ error: "Title and Content are required" });
+    if (!title && !content && !imageUrl) {
+      return res.status(400).json({ error: "Post must have at least a title, content, or an image" });
     }
     const post = await prisma.post.create({
       data: {
