@@ -1,6 +1,7 @@
 import Feed from "./pages/Feed";
 import CreatePost from "./pages/CreatePost";
 import MainLayout from "./layouts/MainLayout";
+import PostDetails from "./pages/PostDetails";
 
 import Register from "./components/Register";
 import Login from "./components/Login";
@@ -18,6 +19,7 @@ function App() {
         element={
           <MainLayout>
             <Feed />
+           
           </MainLayout>
         }
       />
@@ -30,9 +32,19 @@ function App() {
         }
       />
       <Route
-      path="/edit/:id"
-      element={<EditPost/>}
+      path="/edit/:postId"
+      element={ <MainLayout>
+        <EditPost/>
+        
+      </MainLayout>}
         />
+
+      <Route
+      path="/post/:postId"
+      element={<PostDetails/>}
+      />
+
+      
 
     </Routes>
   );
