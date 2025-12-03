@@ -25,12 +25,18 @@ export default function CreatePost() {
   const handleSubmit = async () => {
     setMessage(null);
 
-    // simple frontend validation
-    if (!title.trim() || !content.trim()) {
+
+
+    if (
+      !title.trim() &&
+      !content.trim() &&
+      !imageUrl.trim()
+    ) {
       setSeverity("error");
-      setMessage("Title and content are required.");
+      setMessage("Post must have at least a title, content, or an image.");
       return;
     }
+    
 
     const token = localStorage.getItem("authToken");
     if (!token) {
