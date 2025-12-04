@@ -36,8 +36,38 @@ exports.getAllPosts = async (req, res) => {
     const skip = (page - 1) * limit;
     const category = req.query.category || "";
     const published = req.query.published;
-    const order = req.query.order === "asc" ? "asc" : "desc";
-    const sortBy = req.query.sortBy || "createdAt";
+    // const order = req.query.order === "asc" ? "asc" : "desc";
+    // const sortBy = req.query.sortBy || "createdAt";
+
+    // ---- SORTING LOGIC ----
+const sortQuery = req.query.sortBy || "newest";
+let sortBy;
+let order;
+
+// NEWEST FIRST
+if (sortQuery === "newest") {
+  sortBy = "createdAt";
+  order = "desc";
+}
+
+// OLDEST FIRST
+else if (sortQuery === "oldest") {
+  sortBy = "createdAt";
+  order = "asc";
+}
+
+// MOST COMMENTED
+else if (sortQuery === "mostCommented") {
+  sortBy = "mostCommented"; // temporary marker
+  order = "desc";
+}
+
+// default fallback
+else {
+  sortBy = "createdAt";
+  order = "desc";
+}
+
 
     // filtering
 
@@ -56,18 +86,28 @@ exports.getAllPosts = async (req, res) => {
       ],
     };
 
+    // let orderByObj;
+    // if (sortBy==="mostLiked"){
+    //   orderByObj = { likes: { _count: order } };
+
+    // }
+    // else if(sortBy==="mostCommented") {
+    //   orderByObj = { comments: { _count: order } };
+
+    // }
+    // else{
+    //   orderByObj = { [sortBy]: order };
+    // }
+
     let orderByObj;
-    if (sortBy==="mostLiked"){
-      orderByObj = { likes: { _count: order } };
 
-    }
-    else if(sortBy==="mostCommented") {
-      orderByObj = { comments: { _count: order } };
+if (sortQuery === "mostCommented") {
+  orderByObj = { comments: { _count: "desc" } };
+}
 
-    }
-    else{
-      orderByObj = { [sortBy]: order };
-    }
+else {
+  orderByObj = { [sortBy]: order };
+}
 
     // now we will fecth posts with pagination and search and sorting 
     const posts = await prisma.post.findMany({
