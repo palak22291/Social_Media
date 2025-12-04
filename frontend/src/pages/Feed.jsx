@@ -1,3 +1,7 @@
+
+
+
+
 // import React, { useEffect, useState } from "react";
 // import {
 //   Box,
@@ -5,6 +9,7 @@
 //   Button,
 //   CircularProgress,
 //   Stack,
+//   TextField,
 // } from "@mui/material";
 // import axiosInstance from "../utils/axiosInstance";
 // import PostCard from "../components/PostCard";
@@ -18,6 +23,10 @@
 
 //   const [currentUser, setCurrentUser] = useState(null);
 
+//   // ⭐ SEARCH STATES
+//   const [typedSearch, setTypedSearch] = useState("");
+//   const [search, setSearch] = useState("");
+
 //   const fetchCurrentUser = async () => {
 //     try {
 //       const res = await axiosInstance.get("/auth/me");
@@ -27,23 +36,24 @@
 //     }
 //   };
 
-//   const fetchPosts = async (pageNumber = 1) => {
+//   const fetchPosts = async (pageNumber = 1, searchValue = "") => {
 //     try {
 //       if (pageNumber === 1) setLoading(true);
 //       else setLoadMoreLoading(true);
 
-//       const res = await axiosInstance.get(`/posts?limit=5&page=${pageNumber}`);
+//       const res = await axiosInstance.get(
+//         `/posts?limit=5&page=${pageNumber}&search=${searchValue}`
+//       );
+
 //       const newPosts = res.data.posts || [];
 
 //       if (pageNumber === 1) {
-//         setPosts(newPosts);
+//         setPosts(newPosts); // fresh list when searching or new page 1
 //       } else {
 //         setPosts((prev) => [...prev, ...newPosts]);
 //       }
 
-//       if (newPosts.length < 5) {
-//         setHasMore(false);
-//       }
+//       setHasMore(newPosts.length === 5);
 //     } catch (err) {
 //       console.error("❌ Fetch posts failed:", err);
 //     } finally {
@@ -54,8 +64,8 @@
 
 //   useEffect(() => {
 //     fetchCurrentUser();
-//     fetchPosts(1);
-//   }, []);
+//     fetchPosts(1, search); // fetch with search applied
+//   }, [search]);
 
 //   const handleDeletePost = (postId) => {
 //     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -76,14 +86,34 @@
 //         Connectify Feed
 //       </Typography>
 
-//       {/* first time loading when user load the site  */}
+//       {/* 🔍 SEARCH BAR */}
+//       <TextField
+//         fullWidth
+//         variant="outlined"
+//         placeholder="Search posts..."
+//         value={typedSearch}
+//         onChange={(e) => setTypedSearch(e.target.value)}
+//         onKeyDown={(e) => {
+//           if (e.key === "Enter") {
+//             setSearch(typedSearch);
+//             setPage(1);
+//             fetchPosts(1, typedSearch);
+//           }
+//         }}
+//         sx={{
+//           mb: 3,
+//           input: { color: "white" },
+//         }}
+//       />
+
+//       {/* first time loading */}
 //       {loading ? (
 //         <Box sx={{ textAlign: "center", mt: 4 }}>
 //           <CircularProgress />
 //         </Box>
 //       ) : posts.length === 0 ? (
 //         <Typography sx={{ textAlign: "center", mt: 4, color: "gray" }}>
-//           No posts yet.
+//           No posts found.
 //         </Typography>
 //       ) : (
 //         <Stack spacing={3}>
@@ -102,7 +132,7 @@
 //         </Stack>
 //       )}
 
-//       {/* if our feed has more than 5 posts then we will show load more button  */}
+
 //       {!loading && hasMore && (
 //         <Box sx={{ textAlign: "center", mt: 3 }}>
 //           <Button
@@ -110,8 +140,9 @@
 //             onClick={() => {
 //               const nextPage = page + 1;
 //               setPage(nextPage);
-//               fetchPosts(nextPage);
+//               fetchPosts(nextPage, search); 
 //             }}
+          
 //             disabled={loadMoreLoading}
 //           >
 //             {loadMoreLoading ? "Loading..." : "Load More"}
@@ -123,7 +154,6 @@
 // }
 
 
-
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -132,6 +162,10 @@ import {
   CircularProgress,
   Stack,
   TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from "@mui/material";
 import axiosInstance from "../utils/axiosInstance";
 import PostCard from "../components/PostCard";
@@ -149,6 +183,10 @@ export default function Feed() {
   const [typedSearch, setTypedSearch] = useState("");
   const [search, setSearch] = useState("");
 
+  // ⭐ SORT STATE
+  const [sortBy, setSortBy] = useState("newest"); 
+  // newest | oldest | mostCommented
+
   const fetchCurrentUser = async () => {
     try {
       const res = await axiosInstance.get("/auth/me");
@@ -158,19 +196,25 @@ export default function Feed() {
     }
   };
 
-  const fetchPosts = async (pageNumber = 1, searchValue = "") => {
+  // ⭐ FINAL FETCH FUNCTION (Pagination + Search + Sorting)
+  const fetchPosts = async (pageNumber = 1, searchValue = search, sortValue = sortBy) => {
     try {
       if (pageNumber === 1) setLoading(true);
       else setLoadMoreLoading(true);
 
+      // convert sorting → backend expected values
+      let backendSort = "desc"; // default newest
+      if (sortValue === "oldest") backendSort = "asc";
+      else if (sortValue === "mostCommented") backendSort = "mostCommented";
+
       const res = await axiosInstance.get(
-        `/posts?limit=5&page=${pageNumber}&search=${searchValue}`
+        `/posts?limit=5&page=${pageNumber}&search=${searchValue}&sortBy=${backendSort}`
       );
 
       const newPosts = res.data.posts || [];
 
       if (pageNumber === 1) {
-        setPosts(newPosts); // fresh list when searching or new page 1
+        setPosts(newPosts);
       } else {
         setPosts((prev) => [...prev, ...newPosts]);
       }
@@ -184,10 +228,11 @@ export default function Feed() {
     }
   };
 
+  // trigger fetch on search or sort change
   useEffect(() => {
     fetchCurrentUser();
-    fetchPosts(1, search); // fetch with search applied
-  }, [search]);
+    fetchPosts(1, search, sortBy);
+  }, [search, sortBy]);
 
   const handleDeletePost = (postId) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -208,27 +253,50 @@ export default function Feed() {
         Connectify Feed
       </Typography>
 
-      {/* 🔍 SEARCH BAR */}
-      <TextField
-        fullWidth
-        variant="outlined"
-        placeholder="Search posts..."
-        value={typedSearch}
-        onChange={(e) => setTypedSearch(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            setSearch(typedSearch);
-            setPage(1);
-            fetchPosts(1, typedSearch);
-          }
-        }}
-        sx={{
-          mb: 3,
-          input: { color: "white" },
-        }}
-      />
+      {/* 🔍 SEARCH + SORT ROW */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        
+        {/* SEARCH */}
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search posts..."
+          value={typedSearch}
+          onChange={(e) => setTypedSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              setSearch(typedSearch);
+              setPage(1);
+              fetchPosts(1, typedSearch, sortBy);
+            }
+          }}
+          sx={{ input: { color: "white" } }}
+        />
 
-      {/* first time loading */}
+        {/* SORTING DROPDOWN */}
+        <FormControl sx={{ minWidth: 160 }}>
+          <InputLabel sx={{ color: "white" }}>Sort By</InputLabel>
+          <Select
+            value={sortBy}
+            label="Sort By"
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setPage(1);
+              fetchPosts(1, search, e.target.value);
+            }}
+            sx={{
+              color: "white",
+              ".MuiSvgIcon-root": { color: "white" },
+            }}
+          >
+            <MenuItem value="newest">Newest First</MenuItem>
+            <MenuItem value="oldest">Oldest First</MenuItem>
+            <MenuItem value="mostCommented">Most Commented</MenuItem>
+          </Select>
+        </FormControl>
+      </Stack>
+
+      {/* LOADING STATE */}
       {loading ? (
         <Box sx={{ textAlign: "center", mt: 4 }}>
           <CircularProgress />
@@ -254,7 +322,7 @@ export default function Feed() {
         </Stack>
       )}
 
-
+      {/* LOAD MORE BUTTON */}
       {!loading && hasMore && (
         <Box sx={{ textAlign: "center", mt: 3 }}>
           <Button
@@ -262,9 +330,8 @@ export default function Feed() {
             onClick={() => {
               const nextPage = page + 1;
               setPage(nextPage);
-              fetchPosts(nextPage, search); 
+              fetchPosts(nextPage, search, sortBy);
             }}
-          
             disabled={loadMoreLoading}
           >
             {loadMoreLoading ? "Loading..." : "Load More"}
@@ -274,3 +341,4 @@ export default function Feed() {
     </Box>
   );
 }
+
