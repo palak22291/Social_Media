@@ -261,7 +261,12 @@ export default function Feed() {
               key={post.id}
               post={post}
               onDelete={handleDeletePost}
-              user={currentUser}  // IMPORTANT
+              user={
+                currentUser
+                  ? { id: currentUser.userId, email: currentUser.email }
+                  : null
+              }
+              
             />
           ))}
         </Stack>
