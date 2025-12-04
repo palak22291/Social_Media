@@ -8,6 +8,9 @@ router.post("/create/:postId",authMiddleware,commentController.createComment)
 
 router.get("/:postId",authMiddleware,commentController.getCommentsByPost)
 
+router.put("/update/:commentId",authMiddleware,commentController.updateComment)
+
 router.delete("/delete/:commentId", authMiddleware, commentController.deleteComment);
+
 
 module.exports = router;

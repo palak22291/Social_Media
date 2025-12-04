@@ -23,7 +23,6 @@ export default function Navbar() {
     >
       <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
         
-        {/* ---------- LEFT: Brand Name ---------- */}
         <Typography
           variant="h5"
           sx={{
@@ -40,10 +39,10 @@ export default function Navbar() {
           Connectify
         </Typography>
 
-        {/* ---------- RIGHT BUTTONS ---------- */}
+
         <Box sx={{ display: "flex", gap: 2 }}>
 
-          {/* CREATE POST (only if logged in) */}
+       {/* we will show create post button only when user is logged in  */}
           {token && (
             <Button
               variant="contained"
