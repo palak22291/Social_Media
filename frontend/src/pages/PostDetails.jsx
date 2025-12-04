@@ -31,6 +31,7 @@ export default function PostDetails() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
+    console.log("📌 useEffect triggered! postId =", postId);
     fetchCurrentUser();
     fetchPost();
     fetchComments();
@@ -39,6 +40,7 @@ export default function PostDetails() {
   const fetchCurrentUser = async () => {
     try {
       const res = await axiosInstance.get("/auth/me"); 
+      console.log("CURRENT USER:", res.data.user);
       setCurrentUser(res.data.user);
     } catch (err) {
       console.error("❌ Fetch user failed:", err);
@@ -59,6 +61,7 @@ export default function PostDetails() {
   const fetchComments = async () => {
     try {
       const res = await axiosInstance.get(`/comments/${postId}`);
+      console.log("COMMENTS:", res.data.comments);
       setComments(res.data.comments || []);
     } catch (err) {
       console.error("❌ Comments fetch error:", err);
@@ -222,6 +225,11 @@ export default function PostDetails() {
         <Typography sx={{ color: "gray" }}>No comments yet.</Typography>
       ) : (
         comments.map((c) => (
+          <>
+              {console.log("COMMENT OBJECT:", c)}
+              {console.log("CURRENT USER INSIDE MAP:", currentUser)}
+
+
           <Card
             key={c.id}
             sx={{
@@ -255,7 +263,7 @@ export default function PostDetails() {
                 </Box>
 
                
-                {currentUser?.id === c.author?.id && (
+                {currentUser?.userId === c.authorId && (
                   <IconButton
                     onClick={() => handleDeleteComment(c.id)}
                     size="small"
@@ -266,6 +274,7 @@ export default function PostDetails() {
               </Stack>
             </CardContent>
           </Card>
+          </>
         ))
       )}
     </Box>
