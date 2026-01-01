@@ -1,4 +1,5 @@
 const { prisma } = require("../../prisma/client");
+const { encodeCursor, decodeCursor } = require("../Utils/cursor");
 
 // create a new post
 
@@ -7,7 +8,9 @@ exports.createPost = async (req, res) => {
     const { title, imageUrl, content } = req.body;
 
     if (!title && !content && !imageUrl) {
-      return res.status(400).json({ error: "Post must have at least a title, content, or an image" });
+      return res.status(400).json({
+        error: "Post must have at least a title, content, or an image",
+      });
     }
     const post = await prisma.post.create({
       data: {
@@ -40,34 +43,33 @@ exports.getAllPosts = async (req, res) => {
     // const sortBy = req.query.sortBy || "createdAt";
 
     // ---- SORTING LOGIC ----
-const sortQuery = req.query.sortBy || "newest";
-let sortBy;
-let order;
+    const sortQuery = req.query.sortBy || "newest";
+    let sortBy;
+    let order;
 
-// NEWEST FIRST
-if (sortQuery === "newest") {
-  sortBy = "createdAt";
-  order = "desc";
-}
+    // NEWEST FIRST
+    if (sortQuery === "newest") {
+      sortBy = "createdAt";
+      order = "desc";
+    }
 
-// OLDEST FIRST
-else if (sortQuery === "oldest") {
-  sortBy = "createdAt";
-  order = "asc";
-}
+    // OLDEST FIRST
+    else if (sortQuery === "oldest") {
+      sortBy = "createdAt";
+      order = "asc";
+    }
 
-// MOST COMMENTED
-else if (sortQuery === "mostCommented") {
-  sortBy = "mostCommented"; // temporary marker
-  order = "desc";
-}
+    // MOST COMMENTED
+    else if (sortQuery === "mostCommented") {
+      sortBy = "mostCommented"; // temporary marker
+      order = "desc";
+    }
 
-// default fallback
-else {
-  sortBy = "createdAt";
-  order = "desc";
-}
-
+    // default fallback
+    else {
+      sortBy = "createdAt";
+      order = "desc";
+    }
 
     // filtering
 
@@ -101,15 +103,13 @@ else {
 
     let orderByObj;
 
-if (sortQuery === "mostCommented") {
-  orderByObj = { comments: { _count: "desc" } };
-}
+    if (sortQuery === "mostCommented") {
+      orderByObj = { comments: { _count: "desc" } };
+    } else {
+      orderByObj = { [sortBy]: order };
+    }
 
-else {
-  orderByObj = { [sortBy]: order };
-}
-
-    // now we will fecth posts with pagination and search and sorting 
+    // now we will fecth posts with pagination and search and sorting
     const posts = await prisma.post.findMany({
       where: filterConditions,
       include: {
@@ -120,12 +120,12 @@ else {
             email: true,
           },
         },
-        _count:{
-          select:{
-            likes:true,comments:true
-          }
-        }
-
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
       },
       orderBy: orderByObj,
       // dynamic sorting using req.params
@@ -154,6 +154,79 @@ else {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "something went wrong" });
+  }
+};
+
+exports.getFeedPosts = async (req, res) => {
+  try {
+    // in url the value of the query parameters will be string but we do parseInt because db query expects number not string
+    // bydefault posts will be shown 10 but a safety cap of 20
+
+    const limit = Math.min(parseInt(req.query.limit) || 10, 20);
+    const cursor = req.query.cursor;
+
+    let cursorData = null;
+    if (cursor) {
+      cursorData = decodeCursor(cursor);
+    }
+
+    // new date converts string into js date object
+
+    const posts = await prisma.post.findMany({
+      take: limit,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      where: cursorData
+        ? {
+            OR: [
+              { createdAt: { lt: new Date(cursorData.createdAt) } },
+              {
+                AND: [
+                  { createdAt:  new Date(cursorData.createdAt)  },
+                  // same timestamp but older id
+                  { id: { lt: cursorData.id } },
+                ],
+              },
+            ],
+          }
+        : undefined,
+
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+    });
+
+    // now what if there is more data after this page
+    // if yes we will send a nextCursor otherwise null
+
+    let nextCursor = null;
+
+    if (posts.length == limit) {
+      // nextCursor = null (frontend will stop infinite scrolling)
+      const lastPost = posts[posts.length- 1];
+      // array[index]
+      nextCursor = encodeCursor(lastPost);
+    }
+
+    res.json({
+      posts,
+      nextCursor,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "failed to load feed" });
   }
 };
 
@@ -236,15 +309,3 @@ exports.deletePost = async (req, res) => {
     res.status(500).json({ error: "Something went wrong" });
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
