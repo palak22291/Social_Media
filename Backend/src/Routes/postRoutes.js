@@ -1,7 +1,7 @@
 const express  = require("express")
 
 const {createPost,getAllPosts,getFeedPosts,getPostById,updatePost,deletePost} = require("../Controllers/postController")
-const authMiddleware = require("../Middleware/auth");
+const feedLimiter = require("../Middleware/feedRateLimit")
 const auth = require("../Middleware/auth");
 
 const router = express.Router()
@@ -10,7 +10,7 @@ const router = express.Router()
 // public routes(login not required)
 
 router.get("/",getAllPosts)
-router.get("/feed",getFeedPosts)
+router.get("/feed",feedLimiter,getFeedPosts)
 router.get("/:id",getPostById)
 
 // protected routes(authentication)
