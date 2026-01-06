@@ -22,6 +22,27 @@ model User {
   
   followers Follower[] @relation("Followers")
   following Follower[] @relation("Following")
+
+  refreshTokens  RefreshToken[]
+
+}
+
+
+model RefreshToken{
+
+  id Int   @id @default(autoincrement())
+  token  String  @unique
+  userId  Int
+  user   User  @relation(fields:[userId],references:[id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt  DateTime @default(now())
+  revoked Boolean @default(false)
+  replacedBy String?
+
+
+
+
+
 }
 
 model Follower {
