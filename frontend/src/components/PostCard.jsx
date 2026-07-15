@@ -121,12 +121,45 @@ import {
   Divider,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
 export default function PostCard({ post, onDelete, user }) {
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
+
+  // post.likes contains only the current user's like (if any) — see backend include
+  const [likedByMe, setLikedByMe] = useState(post.likes?.length > 0);
+  const [likeCount, setLikeCount] = useState(post._count?.likes || 0);
+  const [likePending, setLikePending] = useState(false);
+
+  const handleToggleLike = async () => {
+    if (!user) return; // logged-out users can't like
+    if (likePending) return;
+
+    // optimistic update — flip immediately, reconcile with server response
+    const prevLiked = likedByMe;
+    const prevCount = likeCount;
+    setLikedByMe(!prevLiked);
+    setLikeCount(prevLiked ? prevCount - 1 : prevCount + 1);
+    setLikePending(true);
+
+    try {
+      const res = await axiosInstance.post(`/likes/toggle/${post.id}`);
+      // server returns the absolute truth: { liked, likeCount }
+      setLikedByMe(res.data.liked);
+      setLikeCount(res.data.likeCount);
+    } catch (err) {
+      console.error("❌ Toggle like error:", err);
+      // revert optimistic update
+      setLikedByMe(prevLiked);
+      setLikeCount(prevCount);
+    } finally {
+      setLikePending(false);
+    }
+  };
 
   const handleDeletePost = async () => {
     if (!window.confirm("Are you sure you want to delete this post?")) return;
@@ -214,9 +247,18 @@ export default function PostCard({ post, onDelete, user }) {
           <Button
             variant="contained"
             size="small"
+            onClick={handleToggleLike}
+            startIcon={
+              likedByMe ? (
+                <FavoriteIcon sx={{ color: "#ff6b9d" }} />
+              ) : (
+                <FavoriteBorderIcon />
+              )
+            }
             sx={{
-              background:
-                "linear-gradient(135deg, #6A00F4, #BB86FC)",
+              background: likedByMe
+                ? "linear-gradient(135deg, #7B1FFF, #C49BFF)"
+                : "linear-gradient(135deg, #6A00F4, #BB86FC)",
               textTransform: "none",
               fontWeight: 600,
               px: 2,
@@ -226,7 +268,7 @@ export default function PostCard({ post, onDelete, user }) {
               },
             }}
           >
-            Like ({post._count?.likes || 0})
+            {likedByMe ? "Liked" : "Like"} ({likeCount})
           </Button>
 
           <Button

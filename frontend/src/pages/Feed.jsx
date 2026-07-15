@@ -46,13 +46,8 @@ export default function Feed() {
       if (pageNumber === 1) setLoading(true);
       else setLoadMoreLoading(true);
 
-      // convert sorting → backend expected values
-      let backendSort = "desc"; // default newest
-      if (sortValue === "oldest") backendSort = "asc";
-      else if (sortValue === "mostCommented") backendSort = "mostCommented";
-
       const res = await axiosInstance.get(
-        `/posts?limit=5&page=${pageNumber}&search=${searchValue}&sortBy=${backendSort}`
+        `/posts?limit=5&page=${pageNumber}&search=${searchValue}&sortBy=${sortValue}`
       );
 
       const newPosts = res.data.posts || [];
