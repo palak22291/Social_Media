@@ -1,78 +1,53 @@
-
+// src/pages/EditPost.jsx
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Typography, TextField, Button, Alert, CircularProgress } from "@mui/material";
 import axiosInstance from "../utils/axiosInstance";
 import { useNavigate, useParams } from "react-router-dom";
 
 export default function EditPost() {
-  const { postId } = useParams(); 
+  const { postId } = useParams();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [message, setMessage] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Fetch existing post ONCE on mount
   useEffect(() => {
-    fetchPost();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
-
-  const fetchPost = async () => {
-    try {
-      const res = await axiosInstance.get(`/posts/${postId}`);
-      // backend may return post directly or { post: {...} }
-      const fetched = res.data.post || res.data;
-      if (!fetched) {
-        throw new Error("Post not found from API");
-      }
-
-      // Prefill form fields with existing values
-      setTitle(fetched.title || "");
-      setContent(fetched.content || "");
-      setImageUrl(fetched.imageUrl || "");
-    } catch (err) {
-      console.error("❌ Failed to fetch post for edit:", err);
-      alert("Failed to load post for editing.");
-      navigate(-1);
-    } finally {
-      setLoading(false);
-    }
-  };
+    axiosInstance
+      .get(`/posts/${postId}`)
+      .then((res) => {
+        const fetched = res.data.post || res.data;
+        setTitle(fetched.title || "");
+        setContent(fetched.content || "");
+        setImageUrl(fetched.imageUrl || "");
+      })
+      .catch((err) => {
+        console.error("Failed to load post for editing:", err);
+        navigate(-1);
+      })
+      .finally(() => setLoading(false));
+  }, [postId, navigate]);
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setMessage(null);
+    if (!title.trim() || !content.trim()) return;
+
     try {
       setSaving(true);
-
-      const payload = {
-        title,
-        content,
-        imageUrl,
-      };
-
-      const res = await axiosInstance.put(`/posts/${postId}`, payload);
-      if (res.status === 200 || res.status === 201) {
-        // success -> go to post detail or feed
-        navigate(`/post/${postId}`);
-      } else {
-        console.error("Unexpected update response:", res);
-        alert("Failed to update post");
-      }
+      await axiosInstance.put(`/posts/${postId}`, {
+        title: title.trim(),
+        content: content.trim(),
+        // empty string would be rejected by validation — send null to clear
+        imageUrl: imageUrl.trim() || null,
+      });
+      navigate(`/post/${postId}`);
     } catch (err) {
-      console.error("❌ Update failed:", err?.response?.data || err);
-      alert(
+      setMessage(
         err?.response?.data?.error ||
           err?.response?.data?.message ||
           "Failed to update post."
@@ -84,83 +59,65 @@ export default function EditPost() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-        <CircularProgress />
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
+        <CircularProgress size={24} color="primary" />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 700, mx: "auto", mt: 5, px: 2 }}>
-      <Card
-        sx={{
-          background: "rgba(30, 30, 50, 0.85)",
-          borderRadius: 3,
-          border: "1px solid rgba(255,255,255,0.05)",
-        }}
-      >
-        <CardContent>
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
-            Edit Post
-          </Typography>
+    <Box sx={{ py: 1 }}>
+      <Typography variant="h2" sx={{ mb: 0.5, color: "text.primary" }}>
+        Edit post
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 3 }}>
+        Make your changes and save.
+      </Typography>
 
-          <form onSubmit={handleSave}>
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                label="Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                InputLabelProps={{ style: { color: "#bbb" } }}
-                inputProps={{ style: { color: "white" } }}
-              />
-            </Box>
+      {message && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {message}
+        </Alert>
+      )}
 
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                multiline
-                rows={6}
-                label="Content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                InputLabelProps={{ style: { color: "#bbb" } }}
-                inputProps={{ style: { color: "white" } }}
-              />
-            </Box>
+      <form onSubmit={handleSave}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            multiline
+            rows={5}
+            placeholder="What's on your mind?"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            placeholder="Image URL (optional)"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+          />
 
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                label="Image URL (optional)"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                InputLabelProps={{ style: { color: "#bbb" } }}
-                inputProps={{ style: { color: "white" } }}
-              />
-            </Box>
-
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+            <Button variant="text" onClick={() => navigate(-1)}>
+              Cancel
+            </Button>
             <Button
               type="submit"
               variant="contained"
-              fullWidth
-              disabled={saving}
-              sx={{ mt: 1 }}
+              color="primary"
+              disabled={saving || !title.trim() || !content.trim()}
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving…" : "Save changes"}
             </Button>
-
-            <Button
-              variant="outlined"
-              fullWidth
-              sx={{ mt: 1 }}
-              onClick={() => navigate(-1)}
-            >
-              Cancel
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </Box>
+        </Box>
+      </form>
     </Box>
   );
 }

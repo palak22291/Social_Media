@@ -1,3 +1,4 @@
+// src/pages/PostDetails.jsx
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -5,16 +6,113 @@ import {
   CardContent,
   Typography,
   Avatar,
-  Stack,
   TextField,
   Button,
   IconButton,
   CircularProgress,
+  Menu,
+  MenuItem,
 } from "@mui/material";
-import { ArrowBack, Delete as DeleteIcon } from "@mui/icons-material";
-import axiosInstance from "../utils/axiosInstance";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import axiosInstance from "../utils/axiosInstance";
+import { getAvatarStyle } from "../utils/ui";
+
+function CommentItem({ comment, currentUser, onUpdate, onDelete }) {
+  const isOwner = currentUser?.userId === comment.authorId;
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(comment.content);
+  const [menuEl, setMenuEl] = useState(null);
+  const avatarStyle = getAvatarStyle(comment.author?.id);
+
+  const save = async () => {
+    if (!text.trim()) return;
+    await onUpdate(comment.id, text.trim());
+    setEditing(false);
+  };
+
+  return (
+    <Box sx={{ display: "flex", gap: 1.5, py: 1.5 }}>
+      <Avatar
+        sx={{
+          width: 32,
+          height: 32,
+          backgroundColor: avatarStyle.bg,
+          color: avatarStyle.color,
+        }}
+      >
+        {comment.author?.firstName?.[0]?.toUpperCase() || "U"}
+      </Avatar>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+          <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }}>
+            {comment.author?.firstName}
+          </Typography>
+          <Typography sx={{ fontSize: "12px", color: "text.disabled" }}>
+            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+          </Typography>
+        </Box>
+        {editing ? (
+          <Box sx={{ mt: 0.75 }}>
+            <TextField
+              fullWidth
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              multiline
+            />
+            <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+              <Button size="small" variant="contained" color="primary" onClick={save}>
+                Save
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  setEditing(false);
+                  setText(comment.content);
+                }}
+              >
+                Cancel
+              </Button>
+            </Box>
+          </Box>
+        ) : (
+          <Typography variant="body1" sx={{ mt: 0.25 }}>
+            {comment.content}
+          </Typography>
+        )}
+      </Box>
+      {isOwner && !editing && (
+        <>
+          <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}>
+            <MoreHorizIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)}>
+            <MenuItem
+              onClick={() => {
+                setMenuEl(null);
+                setEditing(true);
+              }}
+            >
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuEl(null);
+                onDelete(comment.id);
+              }}
+              sx={{ color: "error.main" }}
+            >
+              Delete
+            </MenuItem>
+          </Menu>
+        </>
+      )}
+    </Box>
+  );
+}
 
 export default function PostDetails() {
   const { postId } = useParams();
@@ -24,316 +122,198 @@ export default function PostDetails() {
   const [comments, setComments] = useState([]);
   const [loadingPost, setLoadingPost] = useState(true);
   const [loadingComments, setLoadingComments] = useState(true);
-
   const [newComment, setNewComment] = useState("");
-
-  // For editing comments
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editText, setEditText] = useState("");
-
-  // Logged-in user
+  const [posting, setPosting] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Real-time hook point: socket "typing:start/stop" events set this.
+  const [typingUser, setTypingUser] = useState(null);
+
   useEffect(() => {
-    fetchCurrentUser();
-    fetchPost();
-    fetchComments();
+    axiosInstance.get("/auth/me").then((r) => setCurrentUser(r.data.user)).catch(() => {});
+    axiosInstance
+      .get(`/posts/${postId}`)
+      .then((r) => setPost(r.data.post || r.data))
+      .catch(console.error)
+      .finally(() => setLoadingPost(false));
+    axiosInstance
+      .get(`/comments/${postId}`)
+      .then((r) => setComments(r.data.comments || []))
+      .catch(console.error)
+      .finally(() => setLoadingComments(false));
   }, [postId]);
 
-  const fetchCurrentUser = async () => {
-    try {
-      const res = await axiosInstance.get("/auth/me");
-      setCurrentUser(res.data.user);
-    } catch (err) {
-      console.error("❌ Fetch user failed:", err);
-    }
-  };
-
-  const fetchPost = async () => {
-    try {
-      const res = await axiosInstance.get(`/posts/${postId}`);
-      setPost(res.data.post || res.data);
-    } catch (err) {
-      console.error("❌ Post fetch error:", err);
-    } finally {
-      setLoadingPost(false);
-    }
-  };
-
-  const fetchComments = async () => {
-    try {
-      const res = await axiosInstance.get(`/comments/${postId}`);
-      setComments(res.data.comments || []);
-    } catch (err) {
-      console.error("❌ Comments fetch error:", err);
-    } finally {
-      setLoadingComments(false);
-    }
-  };
-
-  // ADD COMMENT
-  const handleAddComment = async () => {
+  const addComment = async () => {
     if (!newComment.trim()) return;
-
     try {
+      setPosting(true);
       const res = await axiosInstance.post(`/comments/create/${postId}`, {
         content: newComment.trim(),
       });
-
       setComments((prev) => [res.data.comment, ...prev]);
       setNewComment("");
     } catch (err) {
-      console.error("❌ Add comment error:", err);
+      console.error("Add comment failed:", err);
+    } finally {
+      setPosting(false);
     }
   };
 
-  // UPDATE COMMENT
-  const handleUpdateComment = async (commentId) => {
-    if (!editText.trim()) {
-      alert("Comment cannot be empty");
-      return;
-    }
-
+  const updateComment = async (commentId, content) => {
     try {
-      await axiosInstance.put(`/comments/update/${commentId}`, {
-        content: editText.trim(),
-      });
-
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId ? { ...c, content: editText.trim() } : c
-        )
-      );
-
-      setEditingCommentId(null);
-      setEditText("");
+      await axiosInstance.put(`/comments/update/${commentId}`, { content });
+      setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, content } : c)));
     } catch (err) {
-      console.error("❌ Update comment error:", err);
-      alert("Failed to update comment");
+      console.error("Update comment failed:", err);
+      alert("Couldn't update the comment. Try again.");
     }
   };
 
-  // DELETE COMMENT
-  const handleDeleteComment = async (commentId) => {
+  const deleteComment = async (commentId) => {
     if (!window.confirm("Delete this comment?")) return;
-
     try {
       await axiosInstance.delete(`/comments/delete/${commentId}`);
-
       setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err) {
-      console.error("❌ Delete comment error:", err);
+      console.error("Delete comment failed:", err);
     }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    const parts = name.trim().split(" ");
-    return parts.map((p) => p[0]).join("").toUpperCase();
   };
 
   if (loadingPost)
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
-        <CircularProgress />
+        <CircularProgress size={24} color="primary" />
       </Box>
     );
 
   if (!post)
     return (
-      <Typography align="center" sx={{ mt: 8, color: "gray" }}>
+      <Typography align="center" variant="body1" sx={{ mt: 8 }}>
         Post not found
       </Typography>
     );
 
-  return (
-    <Box sx={{ maxWidth: 700, mx: "auto", p: 2 }}>
-      {/* BACK BUTTON */}
-      <IconButton onClick={() => navigate("/")} sx={{ mb: 2 }}>
-        <ArrowBack sx={{ color: "white" }} />
-      </IconButton>
+  const authorAvatar = getAvatarStyle(post.author?.id);
 
-      {/* POST CARD */}
-      <Card
-        sx={{
-          background: "rgba(30, 30, 50, 0.85)",
-          borderRadius: 3,
-          border: "1px solid rgba(255,255,255,0.05)",
-          mb: 4,
-        }}
-      >
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <Box>
+        <Button
+          variant="text"
+          startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+          onClick={() => navigate("/")}
+          sx={{ px: 1 }}
+        >
+          Back to feed
+        </Button>
+      </Box>
+
+      {/* Post */}
+      <Card>
         <CardContent>
-          <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
             <Avatar
               sx={{
-                width: 46,
-                height: 46,
-                background: "linear-gradient(135deg, #6A00F4, #BB86FC)",
+                width: 36,
+                height: 36,
+                backgroundColor: authorAvatar.bg,
+                color: authorAvatar.color,
               }}
             >
-              {getInitials(
-                post.author?.firstName + " " + post.author?.lastName
-              )}
+              {post.author?.firstName?.[0]?.toUpperCase() || "U"}
             </Avatar>
-
-            <Box>
-              <Typography fontWeight={600}>
-                @{post.author?.firstName?.toLowerCase()}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }}>
+                {post.author?.firstName} {post.author?.lastName || ""}
               </Typography>
-
-              <Typography sx={{ color: "gray" }} variant="body2">
-                {formatDistanceToNow(new Date(post.createdAt))} ago
+              <Typography sx={{ fontSize: "12px", color: "text.disabled" }}>
+                @{post.author?.firstName?.toLowerCase() || "unknown"} ·{" "}
+                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
               </Typography>
             </Box>
-          </Stack>
+          </Box>
 
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+          <Typography variant="h2" sx={{ mb: 0.75, color: "text.primary" }}>
             {post.title}
           </Typography>
-
-          <Typography sx={{ mb: 2 }}>{post.content}</Typography>
-        </CardContent>
-      </Card>
-
-      {/* ADD COMMENT */}
-      <Card
-        sx={{
-          background: "rgba(25, 25, 40, 0.85)",
-          borderRadius: 3,
-          border: "1px solid rgba(255,255,255,0.04)",
-          mb: 3,
-        }}
-      >
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Add a Comment
-          </Typography>
-
-          <Stack direction="row" spacing={2}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Write your comment..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              sx={{ input: { color: "white" } }}
+          <Typography variant="body1">{post.content}</Typography>
+          {post.imageUrl && (
+            <Box
+              component="img"
+              src={post.imageUrl}
+              alt=""
+              sx={{ width: "100%", borderRadius: "10px", mt: 1.5, display: "block" }}
             />
-
-            <Button variant="contained" onClick={handleAddComment}>
-              Post
-            </Button>
-          </Stack>
+          )}
         </CardContent>
       </Card>
 
-      {/* COMMENTS SECTION */}
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Comments
-      </Typography>
-
-      {loadingComments ? (
-        <CircularProgress />
-      ) : comments.length === 0 ? (
-        <Typography sx={{ color: "gray" }}>No comments yet.</Typography>
-      ) : (
-        comments.map((c) => (
-          <Card
-            key={c.id}
-            sx={{
-              background: "rgba(20, 20, 35, 0.85)",
-              borderRadius: 3,
-              border: "1px solid rgba(255,255,255,0.04)",
-              mb: 2,
-            }}
+      {/* Composer */}
+      <Card>
+        <CardContent sx={{ display: "flex", gap: 1.5, py: "12px !important" }}>
+          <TextField
+            fullWidth
+            multiline
+            placeholder="Write a comment..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            // Real-time hook point: emit typing:start (throttled) here
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={addComment}
+            disabled={posting || !newComment.trim()}
+            sx={{ alignSelf: "flex-end" }}
           >
-            <CardContent>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    background: "linear-gradient(135deg, #6A00F4, #BB86FC)",
-                  }}
-                >
-                  {getInitials(
-                    c.author?.firstName + " " + c.author?.lastName
-                  )}
-                </Avatar>
+            Post
+          </Button>
+        </CardContent>
+      </Card>
 
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography fontWeight={600}>
-                    @{c.author?.firstName?.toLowerCase()}
-                  </Typography>
+      {/* Comments */}
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, px: 0.5 }}>
+        <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }}>
+          Comments
+        </Typography>
+        <Typography sx={{ fontSize: "12px", color: "text.disabled" }}>
+          {comments.length}
+        </Typography>
+      </Box>
 
-                  <Typography sx={{ color: "gray" }} variant="body2">
-                    {formatDistanceToNow(new Date(c.createdAt))} ago
-                  </Typography>
-
-                  {/* EDIT MODE */}
-                  {editingCommentId === c.id ? (
-                    <>
-                      <TextField
-                        fullWidth
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        sx={{ mt: 1, input: { color: "white" } }}
-                      />
-
-                      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          onClick={() => handleUpdateComment(c.id)}
-                        >
-                          Save
-                        </Button>
-
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => {
-                            setEditingCommentId(null);
-                            setEditText("");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </Stack>
-                    </>
-                  ) : (
-                    <Typography sx={{ mt: 1 }}>{c.content}</Typography>
-                  )}
-                </Box>
-
-              
-                {currentUser?.userId === c.authorId && (
-                  <Stack direction="row">
-                    {editingCommentId !== c.id && (
-                      <Button
-                        size="small"
-                        sx={{ mr: 1 }}
-                        onClick={() => {
-                          setEditingCommentId(c.id);
-                          setEditText(c.content);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    )}
-
-                    <IconButton
-                      onClick={() => handleDeleteComment(c.id)}
-                      size="small"
-                    >
-                      <DeleteIcon sx={{ color: "error.main" }} />
-                    </IconButton>
-                  </Stack>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        ))
+      {typingUser && (
+        <Typography sx={{ px: 0.5, fontSize: "12px", color: "primary.main" }}>
+          {typingUser} is typing…
+        </Typography>
       )}
+
+      <Card>
+        <CardContent sx={{ py: "6px !important" }}>
+          {loadingComments ? (
+            <Box sx={{ textAlign: "center", py: 3 }}>
+              <CircularProgress size={20} color="primary" />
+            </Box>
+          ) : comments.length === 0 ? (
+            <Typography variant="body1" sx={{ py: 2, textAlign: "center" }}>
+              No comments yet — start the conversation.
+            </Typography>
+          ) : (
+            comments.map((c, i) => (
+              <Box
+                key={c.id}
+                sx={{ borderTop: i === 0 ? "none" : "0.5px solid", borderColor: "divider" }}
+              >
+                <CommentItem
+                  comment={c}
+                  currentUser={currentUser}
+                  onUpdate={updateComment}
+                  onDelete={deleteComment}
+                />
+              </Box>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </Box>
   );
 }

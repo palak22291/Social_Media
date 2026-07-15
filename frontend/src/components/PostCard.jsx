@@ -1,331 +1,190 @@
-// import React, {  useState } from "react";
-// import {
-//   Card,
-//   CardContent,
-//   Typography,
-//   Box,
-//   Button,
-//   IconButton,
-//   // TextField,
-// } from "@mui/material";
-// import DeleteIcon from "@mui/icons-material/Delete";
-// // import EditIcon from "@mui/icons-material/Edit";
-// import axiosInstance from "../utils/axiosInstance";
-// import { useNavigate } from "react-router-dom";
-
-// export default function PostCard({ post, onDelete, user }) {
-//   const navigate = useNavigate();
-
-//   const [deleting, setDeleting] = useState(false);
-
-//   const handleDeletePost = async () => {
-//     if (!window.confirm("Are you sure you want to delete this post?")) return;
-
-//     try {
-//       setDeleting(true);
-//       const res = await axiosInstance.delete(`/posts/${post.id}`);
-
-//       if (res.status === 200) {
-//         if (typeof onDelete === "function") onDelete(post.id);
-//       } else {
-//         alert("Failed to delete post");
-//       }
-//     } catch (err) {
-//       console.error("❌ Delete post error:", err);
-//       alert("Failed to delete post");
-//     } finally {
-//       setDeleting(false);
-//     }
-//   };
-
-//   return (
-//     <Card
-//       sx={{
-//         background: "rgba(30, 30, 50, 0.85)",
-//         backdropFilter: "blur(8px)",
-//         borderRadius: 3,
-//         border: "1px solid rgba(255,255,255,0.05)",
-//         mb: 3,
-//       }}
-//     >
-//       <CardContent>
-//         {/* AUTHOR */}
-//         <Typography variant="subtitle2" sx={{ color: "#BB86FC", mb: 1 }}>
-//           @{post.author?.firstName || "Unknown"}
-//         </Typography>
-
-//         {/* TITLE */}
-//         <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
-//           {post.title}
-//         </Typography>
-
-//         {/* CONTENT */}
-//         <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
-//           {post.content}
-//         </Typography>
-
-   
-//         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-   
-//           <Button variant="contained" size="small">
-//             Like ({post._count?.likes || 0})
-//           </Button>
-
-//           {/* COMMENTS COUNT BTN */}
-//           <Button
-//             variant="outlined"
-//             size="small"
-//             onClick={() => navigate(`/post/${post.id}`)}
-//           >
-//             Comments ({post._count?.comments || 0})
-//           </Button>
-
-//           <Box sx={{ flex: 1 }} />
-
-//           {/* EDIT + DELETE BUTTONS (ONLY IF OWNER) */}
-//           {user?.id === post.author?.id && (
-//             <>
-//               <Button
-//                 variant="outlined"
-//                 size="small"
-//                 onClick={() => navigate(`/edit/${post.id}`)}
-//               >
-//                 Edit
-//               </Button>
-
-//               <IconButton onClick={handleDeletePost} disabled={deleting}>
-//                 <DeleteIcon sx={{ color: "error.main" }} />
-//               </IconButton>
-//             </> 
-//           )}
-//         </Box>
-      
-
-       
-
-         
-//       </CardContent>
-//     </Card>
-//   );
-// }
-
-
+// src/components/PostCard.jsx
 import React, { useState } from "react";
 import {
   Card,
   CardContent,
+  CardActions,
   Typography,
   Box,
-  Button,
+  Avatar,
   IconButton,
-  Divider,
+  Menu,
+  MenuItem,
+  Button,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import axiosInstance from "../utils/axiosInstance";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import ShareOutlinedIcon from "@mui/icons-material/ShareOutlined";
 import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import axiosInstance from "../utils/axiosInstance";
+import { getAvatarStyle } from "../utils/ui";
 
 export default function PostCard({ post, onDelete, user }) {
   const navigate = useNavigate();
+  const isOwner = user?.id === post.author?.id;
+
+  // Optimistic like state — post.likes holds only the current user's like
+  const [liked, setLiked] = useState((post.likes?.length || 0) > 0);
+  const [likeCount, setLikeCount] = useState(post._count?.likes || 0);
+  const [menuEl, setMenuEl] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // post.likes contains only the current user's like (if any) — see backend include
-  const [likedByMe, setLikedByMe] = useState(post.likes?.length > 0);
-  const [likeCount, setLikeCount] = useState(post._count?.likes || 0);
-  const [likePending, setLikePending] = useState(false);
-
-  const handleToggleLike = async () => {
-    if (!user) return; // logged-out users can't like
-    if (likePending) return;
-
-    // optimistic update — flip immediately, reconcile with server response
-    const prevLiked = likedByMe;
+  const handleLike = async () => {
+    if (!user) return navigate("/login");
+    const prevLiked = liked;
     const prevCount = likeCount;
-    setLikedByMe(!prevLiked);
-    setLikeCount(prevLiked ? prevCount - 1 : prevCount + 1);
-    setLikePending(true);
-
+    setLiked(!prevLiked);
+    setLikeCount(prevCount + (prevLiked ? -1 : 1));
     try {
       const res = await axiosInstance.post(`/likes/toggle/${post.id}`);
-      // server returns the absolute truth: { liked, likeCount }
-      setLikedByMe(res.data.liked);
-      setLikeCount(res.data.likeCount);
+      if (res.data?.likeCount !== undefined) {
+        setLiked(res.data.liked);
+        setLikeCount(res.data.likeCount);
+      }
     } catch (err) {
-      console.error("❌ Toggle like error:", err);
-      // revert optimistic update
-      setLikedByMe(prevLiked);
+      setLiked(prevLiked);
       setLikeCount(prevCount);
-    } finally {
-      setLikePending(false);
+      console.error("Like failed:", err);
     }
   };
 
-  const handleDeletePost = async () => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
-
+  const handleDelete = async () => {
+    setMenuEl(null);
+    if (!window.confirm("Delete this post?")) return;
     try {
       setDeleting(true);
-      const res = await axiosInstance.delete(`/posts/${post.id}`);
-
-      if (res.status === 200) {
-        if (typeof onDelete === "function") onDelete(post.id);
-      } else {
-        alert("Failed to delete post");
-      }
+      await axiosInstance.delete(`/posts/${post.id}`);
+      onDelete?.(post.id);
     } catch (err) {
-      console.error("❌ Delete post error:", err);
-      alert("Failed to delete post");
+      console.error("Delete failed:", err);
+      alert("Couldn't delete the post. Try again.");
     } finally {
       setDeleting(false);
     }
   };
 
+  const avatarStyle = getAvatarStyle(post.author?.id);
+
   return (
-    <Card
-      sx={{
-        // background:
-        //   "linear-gradient(180deg, rgba(32,32,50,0.95), rgba(20,20,35,0.95))",
-        backdropFilter: "blur(10px)",
-        borderRadius: 2.5,
-        border: "1px solid rgba(255,255,255,0.08)",
-        mb: 3,
-        boxShadow: "0 12px 30px rgba(0,0,0,0.45)",
-      transition: "transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease",
+    <Card sx={{ mb: 0 }}>
+      {/* Header */}
+      <CardContent sx={{ pb: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+          <Avatar
+            sx={{
+              width: 36,
+              height: 36,
+              backgroundColor: avatarStyle.bg,
+              color: avatarStyle.color,
+            }}
+          >
+            {post.author?.firstName?.[0]?.toUpperCase() || "U"}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }} noWrap>
+              {post.author?.firstName} {post.author?.lastName || ""}
+            </Typography>
+            <Typography sx={{ fontSize: "12px", color: "text.disabled" }} noWrap>
+              @{post.author?.firstName?.toLowerCase() || "unknown"} ·{" "}
+              {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+            </Typography>
+          </Box>
+          {isOwner && (
+            <>
+              <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}>
+                <MoreHorizIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)}>
+                <MenuItem onClick={() => navigate(`/edit/${post.id}`)}>Edit</MenuItem>
+                <MenuItem onClick={handleDelete} disabled={deleting} sx={{ color: "error.main" }}>
+                  Delete
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Box>
 
-        "&:hover": {
-          transform: "translateY(-1px)",
-          boxShadow: "0 8px 20px rgba(141, 80, 255, 0.2)",
-          border: "1.5px solid rgba(180,120,255,0.2)",
-        },
-      }}
-    >
-      <CardContent sx={{ p: 3 }}>
-        {/* AUTHOR */}
-        <Typography
-          variant="caption"
-          sx={{
-            color: "#BB86FC",
-            fontWeight: 600,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}
-        >
-          @{post.author?.firstName || "Unknown"}
-        </Typography>
-
-        {/* TITLE */}
-        <Typography
-          variant="h6"
-          sx={{
-            mt: 1,
-            mb: 1,
-            fontWeight: 700,
-            color: "#F3EFFF",
-            lineHeight: 1.3,
-          }}
-        >
+        {/* Title — this is the money line, give it weight */}
+        <Typography variant="h3" sx={{ mb: 0.75, color: "text.primary" }}>
           {post.title}
         </Typography>
 
-        {/* CONTENT */}
+        {/* Body — muted, readable */}
         <Typography
-          variant="body2"
+          variant="body1"
           sx={{
-            color: "rgba(255,255,255,0.75)",
-            mb: 2,
-            lineHeight: 1.6,
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            mb: 1.5,
           }}
         >
           {post.content}
         </Typography>
 
-        <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.08)" }} />
-
-        {/* ACTION ROW */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={handleToggleLike}
-            startIcon={
-              likedByMe ? (
-                <FavoriteIcon sx={{ color: "#ff6b9d" }} />
-              ) : (
-                <FavoriteBorderIcon />
-              )
-            }
+        {post.imageUrl && (
+          <Box
+            component="img"
+            src={post.imageUrl}
+            alt=""
             sx={{
-              background: likedByMe
-                ? "linear-gradient(135deg, #7B1FFF, #C49BFF)"
-                : "linear-gradient(135deg, #6A00F4, #BB86FC)",
-              textTransform: "none",
-              fontWeight: 600,
-              px: 2,
-              "&:hover": {
-                background:
-                  "linear-gradient(135deg, #7B1FFF, #C49BFF)",
-              },
+              width: "100%",
+              borderRadius: "10px",
+              display: "block",
+              maxHeight: 420,
+              objectFit: "cover",
+              mb: 1.5,
             }}
-          >
-            {likedByMe ? "Liked" : "Like"} ({likeCount})
-          </Button>
-
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => navigate(`/post/${post.id}`)}
-            sx={{
-              textTransform: "none",
-              borderColor: "rgba(187,134,252,0.5)",
-              color: "#BB86FC",
-              "&:hover": {
-                borderColor: "#BB86FC",
-                background: "rgba(187,134,252,0.1)",
-              },
-            }}
-          >
-            Comments ({post._count?.comments || 0})
-          </Button>
-
-          <Box sx={{ flex: 1 }} />
-
-          {/* EDIT + DELETE */}
-          {user?.id === post.author?.id && (
-            <>
-              <Button
-                variant="text"
-                size="small"
-                onClick={() => navigate(`/edit/${post.id}`)}
-                sx={{
-                  color: "#BB86FC",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  "&:hover": {
-                    background: "rgba(187,134,252,0.12)",
-                  },
-                }}
-              >
-                Edit
-              </Button>
-
-              <IconButton
-                onClick={handleDeletePost}
-                disabled={deleting}
-                sx={{
-                  color: "#ff6b6b",
-                  "&:hover": {
-                    background: "rgba(255,80,80,0.15)",
-                  },
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </>
-          )}
-        </Box>
+          />
+        )}
       </CardContent>
+
+      {/* Actions — icon + count only, no text labels */}
+      <CardActions sx={{ px: 2, pb: 1.5, pt: 0, gap: 0.5 }}>
+        <Button
+          size="small"
+          startIcon={liked ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+          onClick={handleLike}
+          sx={{
+            color: liked ? "primary.main" : "text.disabled",
+            backgroundColor: liked ? "primary.light" : "transparent",
+            borderRadius: "8px",
+            px: 1,
+            "& .MuiButton-startIcon": { mr: 0.5 },
+            "&:hover": {
+              backgroundColor: liked ? "primary.light" : "background.paper",
+              color: liked ? "primary.main" : "text.secondary",
+            },
+          }}
+        >
+          {likeCount}
+        </Button>
+
+        <Button
+          size="small"
+          startIcon={<ChatBubbleOutlineIcon />}
+          onClick={() => navigate(`/post/${post.id}`)}
+          sx={{
+            color: "text.disabled",
+            borderRadius: "8px",
+            px: 1,
+            "& .MuiButton-startIcon": { mr: 0.5 },
+            "&:hover": { backgroundColor: "background.paper", color: "text.secondary" },
+          }}
+        >
+          {post._count?.comments ?? 0}
+        </Button>
+
+        <Box sx={{ flex: 1 }} />
+
+        <IconButton size="small" sx={{ color: "text.disabled" }} aria-label="share">
+          <ShareOutlinedIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </CardActions>
     </Card>
   );
 }
-
