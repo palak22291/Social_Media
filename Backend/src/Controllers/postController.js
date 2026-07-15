@@ -6,12 +6,8 @@ const { encodeCursor, decodeCursor } = require("../Utils/cursor");
 exports.createPost = async (req, res) => {
   try {
     const { title, imageUrl, content } = req.body;
+    // body already validated by zod (createPostSchema) in the route
 
-    if (!title && !content && !imageUrl) {
-      return res.status(400).json({
-        error: "Post must have at least a title, content, or an image",
-      });
-    }
     const post = await prisma.post.create({
       data: {
         title,
@@ -78,8 +74,8 @@ exports.getAllPosts = async (req, res) => {
         search
           ? {
               OR: [
-                { title: { contains: search } },
-                { content: { contains: search } },
+                { title: { contains: search, mode: "insensitive" } },
+                { content: { contains: search, mode: "insensitive" } },
               ],
             }
           : {},
@@ -126,6 +122,10 @@ exports.getAllPosts = async (req, res) => {
             comments: true,
           },
         },
+        // current user's own like only → frontend derives likedByMe
+        ...(req.user
+          ? { likes: { where: { userId: req.user.userId }, select: { id: true } } }
+          : {}),
       },
       orderBy: orderByObj,
       // dynamic sorting using req.params
@@ -205,6 +205,9 @@ exports.getFeedPosts = async (req, res) => {
             comments: true,
           },
         },
+        ...(req.user
+          ? { likes: { where: { userId: req.user.userId }, select: { id: true } } }
+          : {}),
       },
     });
 
@@ -245,6 +248,15 @@ exports.getPostById = async (req, res) => {
             email: true,
           },
         },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+        ...(req.user
+          ? { likes: { where: { userId: req.user.userId }, select: { id: true } } }
+          : {}),
       },
     });
     if (!post) {
