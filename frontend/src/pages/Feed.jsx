@@ -1,5 +1,5 @@
 // src/pages/Feed.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -37,42 +37,47 @@ export default function Feed() {
   // yanking the scroll position. The pill flushes them on click.
   const [queuedPosts, setQueuedPosts] = useState([]);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const res = await axiosInstance.get("/auth/me");
       setCurrentUser(res.data.user);
     } catch {
       setCurrentUser(null);
     }
-  };
+  }, []);
 
-  const fetchPosts = async (pageNumber = 1, searchValue = search, sortValue = sortBy) => {
-    try {
-      pageNumber === 1 ? setLoading(true) : setLoadMoreLoading(true);
+  // memoized so the effects below can list it as a dependency —
+  // it only changes identity when search/sortBy change
+  const fetchPosts = useCallback(
+    async (pageNumber = 1, searchValue = search, sortValue = sortBy) => {
+      try {
+        pageNumber === 1 ? setLoading(true) : setLoadMoreLoading(true);
 
-      const res = await axiosInstance.get(
-        `/posts?limit=5&page=${pageNumber}&search=${encodeURIComponent(searchValue)}&sortBy=${sortValue}`
-      );
+        const res = await axiosInstance.get(
+          `/posts?limit=5&page=${pageNumber}&search=${encodeURIComponent(searchValue)}&sortBy=${sortValue}`
+        );
 
-      const newPosts = res.data.posts || [];
-      setPosts((prev) => (pageNumber === 1 ? newPosts : [...prev, ...newPosts]));
-      setHasMore(newPosts.length === 5);
-    } catch (err) {
-      console.error("Fetch posts failed:", err);
-    } finally {
-      setLoading(false);
-      setLoadMoreLoading(false);
-    }
-  };
+        const newPosts = res.data.posts || [];
+        setPosts((prev) => (pageNumber === 1 ? newPosts : [...prev, ...newPosts]));
+        setHasMore(newPosts.length === 5);
+      } catch (err) {
+        console.error("Fetch posts failed:", err);
+      } finally {
+        setLoading(false);
+        setLoadMoreLoading(false);
+      }
+    },
+    [search, sortBy]
+  );
 
   useEffect(() => {
     fetchCurrentUser();
-  }, []);
+  }, [fetchCurrentUser]);
 
   useEffect(() => {
     setPage(1);
     fetchPosts(1, search, sortBy);
-  }, [search, sortBy]);
+  }, [search, sortBy, fetchPosts]);
 
   const flushQueue = () => {
     setPosts((prev) => {

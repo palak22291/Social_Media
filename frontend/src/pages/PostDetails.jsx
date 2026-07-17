@@ -126,8 +126,8 @@ export default function PostDetails() {
   const [posting, setPosting] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Real-time hook point: socket "typing:start/stop" events set this.
-  const [typingUser, setTypingUser] = useState(null);
+  // Phase 5 (typing indicators) re-adds typingUser state here, set by
+  // socket "typing:start/stop" events — removed until then (dead code).
 
   useEffect(() => {
     axiosInstance.get("/auth/me").then((r) => setCurrentUser(r.data.user)).catch(() => {});
@@ -280,12 +280,6 @@ export default function PostDetails() {
           {comments.length}
         </Typography>
       </Box>
-
-      {typingUser && (
-        <Typography sx={{ px: 0.5, fontSize: "12px", color: "primary.main" }}>
-          {typingUser} is typing…
-        </Typography>
-      )}
 
       <Card>
         <CardContent sx={{ py: "6px !important" }}>
