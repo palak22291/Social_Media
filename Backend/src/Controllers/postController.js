@@ -30,7 +30,8 @@ exports.createPost = async (req, res) => {
 exports.getAllPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 5;
+    // cap the page size so ?limit=100000 can't dump the whole table
+    const limit = Math.min(parseInt(req.query.limit) || 5, 20);
     const search = req.query.search || "";
     const skip = (page - 1) * limit;
     const category = req.query.category || "";
