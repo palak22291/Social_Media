@@ -32,7 +32,7 @@ export default function Register() {
     try {
       const payload = {
         firstName: values.firstName.trim(),
-        lastName: values.lastName.trim(),
+        lastName: values.lastName?.trim() || "",
         email: values.email.trim(),
         password: values.password,
       };
