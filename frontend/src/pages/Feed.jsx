@@ -34,6 +34,7 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   const [typedSearch, setTypedSearch] = useState("");
@@ -79,8 +80,12 @@ export default function Feed() {
         setHasMore(newPosts.length === 5);
       }
       setPage(1);
+      setLoadError(false);
     } catch (err) {
+      // surface it — a failed fetch must not render as "No posts yet"
       console.error("Fetch posts failed:", err);
+      setLoadError(true);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -214,6 +219,18 @@ export default function Feed() {
       {loading ? (
         <Box sx={{ textAlign: "center", py: 6 }}>
           <CircularProgress size={24} color="primary" />
+        </Box>
+      ) : loadError && posts.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 6 }}>
+          <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "text.primary" }}>
+            Couldn't load the feed
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Check your connection, then try again.
+          </Typography>
+          <Button variant="outlined" onClick={fetchFirstPage}>
+            Retry
+          </Button>
         </Box>
       ) : posts.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 6 }}>
