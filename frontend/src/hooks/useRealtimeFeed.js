@@ -15,7 +15,15 @@ export function useRealtimeFeed({ currentUserId, setPosts, setQueuedPosts, refet
     if (!socket) return;
 
     const onNewPost = ({ post, actorId }) => {
-      if (currentUserId && actorId === currentUserId) return;
+      if (currentUserId && actorId === currentUserId) {
+        // own post from ANOTHER tab/device — insert it directly (no pill for
+        // your own posts). In the tab that created it, the post-publish
+        // refetch already has it and the dedupe below makes this a no-op.
+        setPosts((prev) =>
+          prev.some((p) => p.id === post.id) ? prev : [post, ...prev]
+        );
+        return;
+      }
       setQueuedPosts((prev) =>
         prev.some((p) => p.id === post.id) ? prev : [post, ...prev]
       );

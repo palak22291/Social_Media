@@ -203,7 +203,10 @@ export default function PostDetails() {
       const res = await axiosInstance.post(`/comments/create/${postId}`, {
         content: newComment.trim(),
       });
-      setComments((prev) => [res.data.comment, ...prev]);
+      // dedupe: our own comment:new socket event may have landed first
+      setComments((prev) =>
+        prev.some((c) => c.id === res.data.comment.id) ? prev : [res.data.comment, ...prev]
+      );
       setNewComment("");
     } catch (err) {
       console.error("Add comment failed:", err);

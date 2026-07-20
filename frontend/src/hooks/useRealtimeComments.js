@@ -17,7 +17,9 @@ export function useRealtimeComments({ postId, currentUserId, setComments, onLike
     socket.emit("post:join", postId);
 
     const onNew = ({ comment, actorId }) => {
-      if (currentUserId && actorId === currentUserId) return;
+      // No actor skip needed here: the dedupe-by-id below already makes this
+      // a no-op in the tab that posted (it prepended from the REST response),
+      // while the same user's OTHER tabs/devices get the comment live.
       setComments((prev) =>
         prev.some((c) => c.id === comment.id) ? prev : [comment, ...prev]
       );
