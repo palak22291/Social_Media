@@ -6,7 +6,9 @@ const rateLimit = require("express-rate-limit")
 
 const feedLimiter =rateLimit({
     windowMs : 60*1000,
-    max:60,
+    // dev: two windows × StrictMode double-fetch burns 60/min fast during
+    // testing, and a 429'd feed used to render as "No posts yet"
+    max: process.env.NODE_ENV === "production" ? 60 : 1000,
     standardHeaders:true,
     legacyHeaders:false,
     message:{
