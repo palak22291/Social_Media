@@ -10,6 +10,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { getTheme } from "./theme";
 import { SocketProvider } from "./context/SocketContext";
+import { CurrentUserProvider } from "./context/CurrentUserContext";
 import EditPost from "./pages/EditPost";
 
 // Dark/light toggle — consumed by MainLayout's navbar button
@@ -45,6 +46,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <SocketProvider>
+        <CurrentUserProvider>
         <Routes>
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
@@ -89,6 +91,7 @@ function App() {
             }
           />
         </Routes>
+        </CurrentUserProvider>
         </SocketProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>

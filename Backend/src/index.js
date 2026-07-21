@@ -7,6 +7,10 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const { initSocket } = require("./socket");
+const { validateEnv } = require("./config/validateEnv");
+
+// fail fast / warn loudly on a misconfigured deploy, before anything else runs
+validateEnv();
 
 const authRoutes = require("./Routes/authRoutes");
 const postRoutes= require("./Routes/postRoutes")

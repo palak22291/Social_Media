@@ -67,8 +67,12 @@ export default function Register() {
       localStorage.setItem("authToken", res.data.token);
       navigate("/");
     } catch (err) {
+      console.error("Google auth: server rejected credential", err?.response?.data || err);
       setSeverity("error");
-      setServerMessage(err?.response?.data?.error || "Google sign-in failed.");
+      setServerMessage(
+        err?.response?.data?.error ||
+          "Couldn't complete sign-in on our server. Please try again."
+      );
     }
   };
 

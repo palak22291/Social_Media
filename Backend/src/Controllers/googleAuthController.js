@@ -12,6 +12,14 @@ exports.googleAuth = async (req, res) => {
       return res.status(400).json({ error: "No token provided" });
     }
 
+    // misconfigured server — say so plainly instead of failing as "invalid token"
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      console.error("Google Auth: GOOGLE_CLIENT_ID is not set on this server");
+      return res
+        .status(500)
+        .json({ error: "Google sign-in is not configured on the server" });
+    }
+
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -51,6 +59,20 @@ exports.googleAuth = async (req, res) => {
     });
   } catch (err) {
     console.error("Google Auth Error:", err.message);
+
+    // an audience mismatch means the server's GOOGLE_CLIENT_ID differs from
+    // the one the frontend used — the single most common deploy misconfig
+    if (/audience/i.test(err.message || "")) {
+      return res.status(500).json({
+        error:
+          "Google sign-in misconfigured: server's GOOGLE_CLIENT_ID doesn't match the app's",
+      });
+    }
+    if (/expired/i.test(err.message || "")) {
+      return res
+        .status(401)
+        .json({ error: "Google sign-in expired. Please try again." });
+    }
     res.status(500).json({ error: "Google authentication failed" });
   }
 };

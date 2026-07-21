@@ -37,7 +37,14 @@ const Login = () => {
       localStorage.setItem("authToken", res.data.token);
       navigate("/");
     } catch (err) {
-      setError("Google sign-in failed. Try again.");
+      // Google gave us a credential but OUR server rejected it — surface the
+      // real reason instead of a generic message (these two failure modes
+      // used to be indistinguishable).
+      console.error("Google auth: server rejected credential", err?.response?.data || err);
+      setError(
+        err?.response?.data?.error ||
+          "Couldn't complete sign-in on our server. Please try again."
+      );
     }
   };
 
@@ -110,7 +117,11 @@ const Login = () => {
               <Box sx={{ display: "flex", justifyContent: "center" }}>
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
-                  onError={() => setError("Google sign-in failed. Try again.")}
+                  onError={() => {
+                    // the Google widget itself failed — never reached our server
+                    console.error("Google auth: widget/credential step failed");
+                    setError("Google sign-in was cancelled or blocked by your browser.");
+                  }}
                   theme="filled_black"
                   shape="pill"
                 />
