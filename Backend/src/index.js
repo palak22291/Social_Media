@@ -17,6 +17,7 @@ const postRoutes= require("./Routes/postRoutes")
 const likeRoutes = require("./Routes/likeRoutes")
 const commentRoutes = require("./Routes/commentRoutes")
 const userRoutes = require("./Routes/userRoutes");
+const chatRoutes = require("./Routes/chatRoutes");
 
 
 
@@ -56,6 +57,7 @@ app.use("/api/posts",postRoutes)
 app.use("/api/likes", likeRoutes)
 app.use("/api/comments",commentRoutes)
 app.use("/api/users", userRoutes);
+app.use("/api/chat", chatRoutes);
 
 
 app.get("/", (req, res) => res.send("API is running"));

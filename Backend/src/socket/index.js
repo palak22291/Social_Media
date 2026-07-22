@@ -1,7 +1,37 @@
 const { Server } = require("socket.io");
 const { verifyToken } = require("../Utils/jwt");
+const { prisma } = require("../../prisma/client");
 
 let io = null;
+
+// Chat rooms are an authorization boundary, not just a fan-out optimisation:
+// a client can emit any conversationId, so membership must be checked against
+// the DB before joining. Without this, anyone could listen to any conversation.
+//
+// Errors are NOT swallowed here. A DB blip and "you're not a member" are very
+// different outcomes: the first is transient and must be retryable, the second
+// is a permanent denial. Collapsing both into `false` silently locks legitimate
+// users out of their own chats (observed: one Aiven hiccup denied a real
+// participant, who then received no live messages until remount).
+async function isConversationParticipant(conversationId, userId) {
+  const row = await prisma.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId, userId } },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
+// one quick retry absorbs the transient connection errors that free-tier
+// Postgres throws under concurrent bursts
+async function checkParticipantWithRetry(conversationId, userId) {
+  try {
+    return await isConversationParticipant(conversationId, userId);
+  } catch (err) {
+    console.warn("participant check errored, retrying once:", err.message?.split("\n")[0]);
+    await new Promise((r) => setTimeout(r, 150));
+    return isConversationParticipant(conversationId, userId); // may throw → caller handles
+  }
+}
 
 function initSocket(httpServer, corsOrigins) {
   io = new Server(httpServer, {
@@ -23,6 +53,10 @@ function initSocket(httpServer, corsOrigins) {
 
     // every client follows the global feed
     socket.join("feed");
+
+    // personal room: lets the server push conversation-list updates (new
+    // message, unread badge) to a user even when they aren't inside that chat
+    socket.join(`user:${socket.user.userId}`);
 
     // Per-socket rate limit for high-frequency client events (typing).
     // A legit client (throttled to 1 start/2s + stops) stays well under 20
@@ -69,6 +103,68 @@ function initSocket(httpServer, corsOrigins) {
       const id = parseInt(payload?.postId ?? payload);
       if (!Number.isInteger(id) || id <= 0) return;
       socket.to(`post:${id}`).emit("typing:stop", { userId: socket.user.userId });
+    });
+
+    // ─── Chat ───────────────────────────────────────────────────────────
+    // Unlike post rooms (posts are public), conversation rooms are private:
+    // membership is verified against the DB before the socket joins.
+    // The optional `ack` callback tells the client whether the join actually
+    // succeeded, so a transient failure can be retried instead of leaving the
+    // user in a chat that silently receives nothing.
+    socket.on("conversation:join", async (conversationId, ack) => {
+      const id = parseInt(conversationId);
+      if (!Number.isInteger(id) || id <= 0) {
+        return ack?.({ ok: false, reason: "invalid" });
+      }
+      try {
+        if (!(await checkParticipantWithRetry(id, socket.user.userId))) {
+          console.warn(
+            `socket: user ${socket.user.userId} denied join of conversation:${id}`
+          );
+          // deliberately vague: never reveals whether the conversation exists
+          return ack?.({ ok: false, reason: "forbidden" });
+        }
+        socket.join(`conversation:${id}`);
+        ack?.({ ok: true });
+      } catch (err) {
+        // infrastructure failure, NOT an authorization decision — stay out of
+        // the room (fail closed) but tell the client it may retry
+        console.error(
+          `socket: conversation:${id} join check failed for user ${socket.user.userId}:`,
+          err.message?.split("\n")[0]
+        );
+        ack?.({ ok: false, reason: "error", retryable: true });
+      }
+    });
+
+    socket.on("conversation:leave", (conversationId) => {
+      const id = parseInt(conversationId);
+      if (Number.isInteger(id) && id > 0) socket.leave(`conversation:${id}`);
+    });
+
+    // Chat typing relays. Room membership was already authorised at join time,
+    // and socket.to() excludes the sender.
+    socket.on("chat:typing:start", (payload) => {
+      if (!withinRateLimit()) return;
+      const id = parseInt(payload?.conversationId ?? payload);
+      if (!Number.isInteger(id) || id <= 0) return;
+      const firstName =
+        String(payload?.firstName || "").trim().slice(0, 40) || "Someone";
+      socket.to(`conversation:${id}`).emit("chat:typing:start", {
+        conversationId: id,
+        userId: socket.user.userId,
+        firstName,
+      });
+    });
+
+    socket.on("chat:typing:stop", (payload) => {
+      if (!withinRateLimit()) return;
+      const id = parseInt(payload?.conversationId ?? payload);
+      if (!Number.isInteger(id) || id <= 0) return;
+      socket.to(`conversation:${id}`).emit("chat:typing:stop", {
+        conversationId: id,
+        userId: socket.user.userId,
+      });
     });
 
     socket.on("disconnect", () => {

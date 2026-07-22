@@ -1,6 +1,6 @@
 const { prisma } = require("../../prisma/client");
 const { encodeCursor, decodeCursor } = require("../Utils/cursor");
-// const { safeEmit } = require("../socket");   // Phase 2 wires the broadcasts
+const { safeEmit } = require("../socket");
 
 // participants are always returned in this shape (never leak email/password)
 const participantSelect = {
@@ -251,9 +251,32 @@ exports.sendMessage = async (req, res) => {
       }),
     ]);
 
-    // Phase 2: safeEmit(`conversation:${conversationId}`, "message:new",
-    //            { ...message, actorId: meId })
-    //          + conversation:updated to each participant's user room
+    // broadcast to everyone currently viewing this conversation
+    safeEmit(`conversation:${conversationId}`, "message:new", {
+      ...message,
+      actorId: meId,
+    });
+
+    // …and to each participant's personal room, so their conversation LIST
+    // re-sorts and the unread badge updates even if the chat isn't open.
+    // Unread counts are per-user, so each client recomputes its own.
+    const participants = await prisma.conversationParticipant.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+    for (const p of participants) {
+      safeEmit(`user:${p.userId}`, "conversation:updated", {
+        conversationId,
+        lastMessage: {
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt,
+          senderId: message.senderId,
+        },
+        updatedAt: message.createdAt,
+        actorId: meId,
+      });
+    }
 
     res.status(201).json({ message: "Message sent", data: message });
   } catch (err) {
@@ -286,8 +309,13 @@ exports.markRead = async (req, res) => {
       data: { lastReadAt: readAt },
     });
 
-    // Phase 2: safeEmit(`conversation:${conversationId}`, "message:read",
-    //            { conversationId, userId: meId, readAt, actorId: meId })
+    // read receipts: tell the room so the other side can show "Seen"
+    safeEmit(`conversation:${conversationId}`, "message:read", {
+      conversationId,
+      userId: meId,
+      readAt,
+      actorId: meId,
+    });
 
     res.json({ message: "Marked as read", conversationId, readAt });
   } catch (err) {
